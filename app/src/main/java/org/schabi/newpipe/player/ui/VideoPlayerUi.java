@@ -1085,31 +1085,51 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
     //////////////////////////////////////////////////////////////////////////*/
     //region Popup menus ("popup" means that they pop up, not that they belong to the popup player)
 
-    private void buildQualityMenu() {
-        if (qualityPopupMenu == null) {
-            return;
-        }
-        qualityPopupMenu.getMenu().removeGroup(POPUP_MENU_ID_QUALITY);
-
-        final List<VideoStream> availableStreams = Optional.ofNullable(player.getCurrentMetadata())
-                .flatMap(MediaItemTag::getMaybeQuality)
-                .map(MediaItemTag.Quality::getSortedVideoStreams)
-                .orElse(null);
-        if (availableStreams == null) {
-            return;
-        }
-
-        for (int i = 0; i < availableStreams.size(); i++) {
-            final VideoStream videoStream = availableStreams.get(i);
-            qualityPopupMenu.getMenu().add(POPUP_MENU_ID_QUALITY, i, Menu.NONE, MediaFormat
-                    .getNameById(videoStream.getFormatId()) + " " + videoStream.getResolution());
-        }
-        qualityPopupMenu.setOnMenuItemClickListener(this);
-        qualityPopupMenu.setOnDismissListener(this);
-
-        player.getSelectedVideoStream()
-                .ifPresent(s -> binding.qualityTextView.setText(s.getResolution()));
+private void buildQualityMenu() {
+    if (qualityPopupMenu == null) {
+        return;
     }
+    qualityPopupMenu.getMenu().removeGroup(POPUP_MENU_ID_QUALITY);
+
+    final List<VideoStream> availableStreams = Optional.ofNullable(player.getCurrentMetadata())
+            .flatMap(MediaItemTag::getMaybeQuality)
+            .map(MediaItemTag.Quality::getSortedVideoStreams)
+            .orElse(null);
+    if (availableStreams == null) {
+        return;
+    }
+
+    for (int i = 0; i < availableStreams.size(); i++) {
+        final VideoStream videoStream = availableStreams.get(i);
+
+        String formatName = MediaFormat.getNameById(videoStream.getFormatId());
+        String resolution = videoStream.getResolution();
+
+        // --- NEW: Format content length ---
+        long clen = videoStream.getContentLength(); // or getSize(), etc.
+        String sizeLabel = "";
+        if (clen > 0) {
+            sizeLabel = " • " + formatSize(clen);
+        }
+
+        String label = formatName + " " + resolution + sizeLabel;
+
+        qualityPopupMenu.getMenu().add(POPUP_MENU_ID_QUALITY, i, Menu.NONE, label);
+    }
+    qualityPopupMenu.setOnMenuItemClickListener(this);
+    qualityPopupMenu.setOnDismissListener(this);
+
+    player.getSelectedVideoStream()
+            .ifPresent(s -> binding.qualityTextView.setText(s.getResolution()));
+}
+
+// You can put this helper method in this file or a utils class
+private String formatSize(long bytes) {
+    if (bytes < 1024) return bytes + " B";
+    int exp = (int) (Math.log(bytes) / Math.log(1024));
+    String pre = "KMGTPE".charAt(exp-1) + "";
+    return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
+}
 
     private void buildAudioTrackMenu() {
         if (audioTrackPopupMenu == null) {
